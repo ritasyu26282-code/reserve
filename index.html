@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Sheets 表格</title>
+    <style>
+        body {
+            font-family: 'Arial', 'Microsoft JhengHei', sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: #333;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 40px 50px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 1200px;
+            box-sizing: border-box;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1 {
+            color: #1a2a4b;
+            margin-bottom: 20px;
+        }
+
+        .status-message {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .loading {
+            background-color: #e6f2ff;
+            color: #4a90e2;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        #table-container {
+            flex-grow: 1;
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            overflow: hidden;
+            table-layout: fixed;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 15px;
+            border: 2px solid #888;
+            overflow-wrap: break-word;
+            vertical-align: top;
+        }
+
+        th {
+            background-color: #4a90e2;
+            color: white;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        tr:hover {
+            background-color: #e6f2ff;
+        }
+
+        /* 備料狀態的樣式 */
+        .status-pending {
+            background-color: #f8d7da; /* 粉紅色背景 */
+            color: #721c24; /* 紅色文字 */
+            font-weight: bold;
+        }
+        
+        /* 急件/一般件不換行 */
+        .nowrap-col {
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Google Sheets 表格內容</h1>
+    <div id="status-message" class="status-message loading">
+        讀取中...
+    </div>
+    <div id="table-container">
+        <!-- 表格將由 JavaScript 動態生成 -->
+    </div>
+</div>
+
+<script>
+    // The CSV export link for the Google Sheets document.
+    // This requires the document to be set to "Anyone with the link" can view.
+    const googleSheetsUrl = 'https://docs.google.com/spreadsheets/d/1tXOGGQlYSrvQiDjImrSENq8cfwu7yYFxNFD6LgQksMQ/export?format=csv';
+
+    const tableContainer = document.getElementById('table-container');
+    const statusMessage = document.getElementById('status-message');
+
+    // The hardcoded column headers to ensure the display matches your request.
+    const newHeaders = [
+        '時間戳記',
+        '領取人TEAM+名',
+        '急件/一般件',
+        '領料單張數',
+        '領料單編號',
+        '調撥單張數',
+        '調撥單編號',
+        '備料經辦',
+        '備料狀態',
+        '備註'
+    ];
+
+    async function fetchGoogleSheetsData() {
+        try {
+            // Fetch the CSV data using fetch()
+            const response = await fetch(googleSheetsUrl);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP 錯誤! 狀態碼: ${response.status}`);
+            }
+
+            const csvText = await response.text();
+            
+            // Parse the CSV data and generate the table
+            const rows = csvText.trim().split('\n');
+            if (rows.length === 0) {
+                showStatus('錯誤: 沒有找到任何資料。', 'error');
+                return;
+            }
+
+            // Process CSV data rows, skipping the first 7 rows
+            const allDataRows = rows.slice(7);
+
+            // Get the date three days ago (changed from 10 to 3)
+            const threeDaysAgo = new Date();
+            threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+            threeDaysAgo.setHours(0, 0, 0, 0); // Set time to midnight for accurate comparison
+
+            // Filter the data to show only entries from the last 3 days
+            const filteredDataRows = allDataRows.filter(row => {
+                const columns = row.split(',');
+                // Ensure the timestamp column exists before trying to parse
+                if (columns.length > 0) {
+                    // 只擷取日期部分 (YYYY/MM/DD) 來進行篩選
+                    const datePart = columns[0].trim().split(' ')[0];
+                    const rowDate = new Date(datePart);
+                    
+                    // Check if the date is valid and is within the last 3 days
+                    return !isNaN(rowDate) && rowDate >= threeDaysAgo;
+                }
+                return false;
+            });
+
+            let tableHTML = '<table>';
+            
+            // 使用 colgroup 來設定各欄位寬度
+            tableHTML += `
+                <colgroup>
+                    <col style="width: 10%;"> <!-- 時間戳記 (YYYY/MM/DD) -->
+                    <col style="width: 15%;"> <!-- 領取人TEAM+名 -->
+                    <col style="width: 6%;">  <!-- 急件/一般件 (3個字) -->
+                    <col style="width: 8%;">  <!-- 領料單張數 -->
+                    <col style="width: 10%;"> <!-- 領料單編號 (5個字) -->
+                    <col style="width: 8%;">  <!-- 調撥單張數 -->
+                    <col style="width: 10%;"> <!-- 調撥單編號 (5個字) -->
+                    <col style="width: 15%;"> <!-- 備料經辦 -->
+                    <col style="width: 10%;"> <!-- 備料狀態 (5個字) -->
+                    <col style="width: 8%;">  <!-- 備註 -->
+                </colgroup>
+            `;
+            
+            // Generate table headers using the hardcoded newHeaders
+            tableHTML += '<thead><tr>';
+            newHeaders.forEach(header => {
+                tableHTML += `<th>${header}</th>`;
+            });
+            tableHTML += '</tr></thead>';
+
+            // Generate table content using the filtered data
+            tableHTML += '<tbody>';
+            filteredDataRows.forEach(row => {
+                const columns = row.split(',');
+                // Create a new array for the row data, skipping the "調撥單注意事項" column (original index 7)
+                const filteredColumns = columns.filter((_, index) => index !== 7);
+                
+                tableHTML += '<tr>';
+                filteredColumns.forEach((column, index) => {
+                    let displayValue = column.trim();
+                    let tdClass = '';
+                    
+                    // 只顯示時間戳記欄位（index 0）的日期部分
+                    if (index === 0) {
+                        displayValue = displayValue.split(' ')[0];
+                    }
+                    
+                    // 調整急件/一般件的樣式 (在 filteredColumns 中 index 為 2)
+                    if (index === 2) {
+                        tdClass += 'nowrap-col';
+                    }
+
+                    // 調整備料狀態的樣式 (在 filteredColumns 中 index 為 8)
+                    if (index === 8 && displayValue !== '已完成備料') {
+                        tdClass += ' status-pending';
+                    }
+                    
+                    // 核心改變：移除所有欄位中的特定文字
+                    const textToRemove1 = '(下午13:30後再到資材領)';
+                    const textToRemove2 = '(當天早上要領，填完單之後需打電話給資材 403-3445)';
+                    
+                    displayValue = displayValue.replace(textToRemove1, '').replace(textToRemove2, '').trim();
+
+                    tableHTML += `<td class="${tdClass}">${displayValue}</td>`;
+                });
+                tableHTML += '</tr>';
+            });
+            tableHTML += '</tbody>';
+
+            tableHTML += '</table>';
+            
+            tableContainer.innerHTML = tableHTML;
+            showStatus('資料已成功載入！', 'loading'); // Display a message after loading
+            statusMessage.style.display = 'none'; // Hide the status message
+            
+        } catch (error) {
+            console.error('An error occurred while fetching or parsing data:', error);
+            showStatus(`載入資料失敗：${error.message}`, 'error');
+        }
+    }
+
+    function showStatus(message, type) {
+        statusMessage.textContent = message;
+        statusMessage.className = `status-message ${type}`;
+        statusMessage.style.display = 'block';
+    }
+
+    // Call the function to load data when the page loads
+    window.onload = fetchGoogleSheetsData;
+</script>
+
+</body>
+</html>
