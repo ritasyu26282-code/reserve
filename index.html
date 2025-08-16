@@ -20,7 +20,8 @@
             background-color: #fff;
             padding: 40px 50px;
             border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            /* 調整為更明顯的陰影 */
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
             width: 100%;
             max-width: 1200px;
             box-sizing: border-box;
@@ -32,6 +33,17 @@
         h1 {
             color: #1a2a4b;
             margin-bottom: 20px;
+            font-size: 1.8em; /* 調整標題字體大小 */
+        }
+        
+        /* 注意事項樣式 */
+        .notes {
+            text-align: left;
+            margin-bottom: 20px;
+        }
+        .notes p {
+            margin: 0;
+            line-height: 1.5;
         }
 
         .status-message {
@@ -52,6 +64,7 @@
         #table-container {
             flex-grow: 1;
             overflow-x: auto;
+            overflow-y: auto;
         }
         
         table {
@@ -61,7 +74,9 @@
             background-color: #f9f9f9;
             border-radius: 8px;
             overflow: hidden;
-            table-layout: fixed;
+            table-layout: fixed; /* 恢復固定欄寬 */
+            /* 新增表格陰影 */
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
         }
 
         th, td {
@@ -76,6 +91,9 @@
             background-color: #4a90e2;
             color: white;
             font-weight: bold;
+            position: sticky; /* 固定位置 */
+            top: 0; /* 固定在最上方 */
+            z-index: 1; /* 確保在其他儲存格之上 */
         }
 
         tr:nth-child(even) {
@@ -86,10 +104,17 @@
             background-color: #e6f2ff;
         }
 
-        /* 備料狀態的樣式 */
+        /* 備料狀態 - 未完成 的樣式 (粉紅色底，紅色字) */
         .status-pending {
-            background-color: #f8d7da; /* 粉紅色背景 */
-            color: #721c24; /* 紅色文字 */
+            background-color: #f8d7da;
+            color: #721c24;
+            font-weight: bold;
+        }
+
+        /* 備料狀態 - 已完成 的樣式 (淺綠色底，深綠色字) */
+        .status-complete {
+            background-color: #d4edda;
+            color: #155724;
             font-weight: bold;
         }
         
@@ -102,7 +127,17 @@
 <body>
 
 <div class="container">
-    <h1>Google Sheets 表格內容</h1>
+    <!-- 更新標題 -->
+    <h1>林口MA庫-預約領料3.0 [近兩日填單內容]</h1>
+    
+    <!-- 新增注意事項區塊 -->
+    <div class="notes">
+        <p><b>注意事項：</b></p>
+        <p>1.本單僅限林口院區護理部領料及調撥，周一~周五11:00前填寫預約，下午13:30至資材領取</p>
+        <p>2.以系統時間戳記為準，超過11:00填單，不受理，請現場排隊等候</p>
+        <p>3.國定假日及颱風停班停課不受理</p>
+    </div>
+
     <div id="status-message" class="status-message loading">
         讀取中...
     </div>
@@ -154,12 +189,12 @@
             // Process CSV data rows, skipping the first 7 rows
             const allDataRows = rows.slice(7);
 
-            // Get the date three days ago (changed from 10 to 3)
-            const threeDaysAgo = new Date();
-            threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-            threeDaysAgo.setHours(0, 0, 0, 0); // Set time to midnight for accurate comparison
+            // Get the date two days ago
+            const twoDaysAgo = new Date();
+            twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+            twoDaysAgo.setHours(0, 0, 0, 0); // Set time to midnight for accurate comparison
 
-            // Filter the data to show only entries from the last 3 days
+            // Filter the data to show only entries from the last 2 days
             const filteredDataRows = allDataRows.filter(row => {
                 const columns = row.split(',');
                 // Ensure the timestamp column exists before trying to parse
@@ -168,8 +203,8 @@
                     const datePart = columns[0].trim().split(' ')[0];
                     const rowDate = new Date(datePart);
                     
-                    // Check if the date is valid and is within the last 3 days
-                    return !isNaN(rowDate) && rowDate >= threeDaysAgo;
+                    // Check if the date is valid and is within the last 2 days
+                    return !isNaN(rowDate) && rowDate >= twoDaysAgo;
                 }
                 return false;
             });
@@ -219,11 +254,19 @@
                     // 調整急件/一般件的樣式 (在 filteredColumns 中 index 為 2)
                     if (index === 2) {
                         tdClass += 'nowrap-col';
+                        // 根據「急件」文字內容設定樣式
+                        if (displayValue === '急件') {
+                            tdClass += ' status-pending';
+                        }
                     }
 
                     // 調整備料狀態的樣式 (在 filteredColumns 中 index 為 8)
-                    if (index === 8 && displayValue !== '已完成備料') {
-                        tdClass += ' status-pending';
+                    if (index === 8) {
+                        if (displayValue === '已完成備料') {
+                            tdClass += ' status-complete';
+                        } else {
+                            tdClass += ' status-pending';
+                        }
                     }
                     
                     // 核心改變：移除所有欄位中的特定文字
