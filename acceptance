@@ -1,0 +1,725 @@
+ <!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>林口院區手術室待檢驗資料轉檔</title>
+    <style>
+        /* Base styles for the body */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* Main container for the application, now for wide screens */
+        .container {
+            background-color: #ffffff;
+            padding: 40px 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            width: 95vw; /* Use vw to make it responsive to viewport width */
+            max-width: 1200px; /* Increased max width for desktop view */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            text-align: center;
+        }
+        
+        /* Adjust padding for the container content to be more compact */
+        .container > * {
+            width: 100%;
+            margin-bottom: 15px;
+        }
+        
+        .container .btn-container,
+        .container .summary-box {
+            padding: 0 15px; /* Add horizontal padding for a better look */
+        }
+        
+        /* Header styling with instructions button */
+        .header-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        /* Title styling */
+        h1 {
+            color: #2c3e50;
+            margin: 0;
+        }
+        
+        /* Instructions button styling */
+        .instructions-btn {
+            background-color: #2c3e50;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+            font-size: 14px;
+            font-weight: bold;
+            border: none;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .instructions-btn:hover {
+            background-color: #34495e;
+            transform: translateY(-1px);
+        }
+
+
+        /* Button container */
+        .btn-container {
+            display: flex;
+            flex-direction: column; /* Stack buttons vertically for long screens */
+            gap: 15px;
+        }
+
+        /* Common button styles */
+        .upload-btn {
+            width: 100%;
+            display: inline-block;
+            color: #fff;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            background-color: #3498db;
+        }
+
+        .upload-btn:hover {
+            background-color: #2980b9;
+        }
+
+        @media (min-width: 600px) {
+            .btn-container {
+                flex-direction: row; /* Switch back to horizontal for wider screens */
+                gap: 20px;
+            }
+            .upload-btn {
+                width: auto;
+            }
+        }
+
+        /* Hidden file input */
+        #fileInput {
+            display: none;
+        }
+
+        /* Summary box styling */
+        .summary-box {
+            margin: 20px auto;
+            text-align: left;
+            background-color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #bdc3c7;
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            font-weight: bold;
+        }
+        
+        .summary-box p {
+            margin: 0;
+            padding: 5px;
+            color: #34495e;
+        }
+        
+        /* Added colors for the summary counts */
+        .ma-count-color {
+            color: #3498db; /* Blue, matching the upload button */
+            font-size: 18px; /* Increased font size */
+        }
+        .mb-count-color {
+            color: #2ecc71; /* Green, matching the filter button */
+            font-size: 18px; /* Increased font size */
+        }
+        .total-count-color {
+            color: #e74c3c; /* Red, matching the download button for emphasis */
+            font-size: 18px; /* Increased font size */
+        }
+
+        /* Result display box */
+        .result-box {
+            margin-top: 30px;
+            text-align: left;
+            background-color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #bdc3c7;
+            min-height: 150px;
+            overflow-x: auto; /* Allow horizontal scrolling */
+        }
+        
+        /* Table styles */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 16px;
+        }
+
+        th, td {
+            border: 1px solid #bdc3c7;
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #34495e;
+            color: #fff;
+            font-weight: bold;
+            white-space: nowrap; /* Prevent headers from wrapping */
+        }
+
+        tr:nth-child(odd) {
+            background-color: #ffffff;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        /* Modal overlay and content */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none; /* Hidden by default */
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+
+        .modal-content h3 {
+            margin-top: 0;
+            color: #34495e;
+        }
+        
+        /* Specific styles for the instructions modal */
+        .instructions-modal-content h3 {
+            text-align: center;
+        }
+
+        .instructions-modal-content ol {
+            text-align: left;
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .instructions-modal-content li {
+            margin-bottom: 10px;
+        }
+
+
+        /* Style for the table within the modal */
+        #filterModal table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        
+        #filterModal th, #filterModal td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        #filterModal th {
+            background-color: #f2f2f2;
+            color: #333;
+            font-weight: bold;
+        }
+        
+        #filterModal tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        /* Center-align the first column (Item Number) in the modal table */
+        #filterModal th:first-child,
+        #filterModal td:first-child {
+            text-align: center;
+        }
+
+        .modal-table-container {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #bdc3c7;
+            border-radius: 6px;
+            padding: 5px;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #7f8c8d;
+            transition: color 0.2s ease;
+        }
+
+        .close-btn:hover {
+            color: #e74c3c;
+        }
+        
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header-container">
+            <h1>林口院區手術室待檢驗資料轉檔</h1>
+            <button id="filterBtn" class="instructions-btn">
+                篩選條件查詢
+            </button>
+            <button id="showInstructionsBtn" class="instructions-btn">
+                使用說明
+            </button>
+        </div>
+
+        <div class="btn-container">
+            <label for="fileInput" class="upload-btn">
+                選擇檔案
+            </label>
+            <input type="file" id="fileInput" accept=".txt, .csv">
+        </div>
+
+        <!-- New section for displaying summary counts -->
+        <div class="summary-box">
+            <p>統計件數：</p>
+            <p>MA庫: <span id="ma-count" class="ma-count-color">0</span> 件</p>
+            <p>MB庫: <span id="mb-count" class="mb-count-color">0</span> 件</p>
+            <p>總計: <span id="total-count" class="total-count-color">0</span> 件</p>
+        </div>
+
+        <div class="result-box" id="result">
+            請上傳檔案以查看結果...
+        </div>
+    </div>
+    
+    <!-- New Modal for Instructions -->
+    <div id="instructionsModal" class="modal-overlay">
+        <div class="modal-content instructions-modal-content">
+            <span class="close-btn" id="closeInstructionsModalBtn">&times;</span>
+            <h3>使用說明</h3>
+            <ol>
+                <li>請至行動倉儲「<a href="https://cghasp.cgmh.org.tw/cghwms/view/module/domain/G44/ACS44MWMSRSK4P.aspx" target="_blank">629收料附加檔案資料查詢</a>」匯出CSV檔(院區林口長庚、庫別空白、篩選需要的時間區間)。</li>
+                <li>將資料上傳，會篩選MA/MB，且為篩選列表中的請購部門。</li>
+                <li>篩選出來後，請使用google chrome列印功能。</li>
+            </ol>
+        </div>
+    </div>
+
+
+    <!-- Modal for displaying filtered departments -->
+    <div id="filterModal" class="modal-overlay">
+        <div class="modal-content">
+            <span class="close-btn" id="closeModalBtn">&times;</span>
+            <h3>符合篩選條件的請購部門</h3>
+            <div class="modal-table-container">
+                <table id="departmentTable">
+                    <thead>
+                        <tr>
+                            <th>項次</th>
+                            <th>請購部門</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Table rows will be dynamically added here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Wait for the entire webpage content to be loaded
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // Get HTML elements
+            const fileInput = document.getElementById('fileInput');
+            const resultElement = document.getElementById('result');
+            const filterBtn = document.getElementById('filterBtn');
+            const filterModal = document.getElementById('filterModal');
+            const closeModalBtn = document.getElementById('closeModalBtn');
+            const departmentTable = document.getElementById('departmentTable');
+            // Get elements for the new summary box
+            const maCountElement = document.getElementById('ma-count');
+            const mbCountElement = document.getElementById('mb-count');
+            const totalCountElement = document.getElementById('total-count');
+            
+            // 新增：取得使用說明視窗相關元素
+            const showInstructionsBtn = document.getElementById('showInstructionsBtn');
+            const instructionsModal = document.getElementById('instructionsModal');
+            const closeInstructionsModalBtn = document.getElementById('closeInstructionsModalBtn');
+
+            // 將 filteredData, requiredHeaderIndices, dateIndex 儲存為全域變數
+            let filteredData = [];
+            let requiredHeaderIndices = [];
+            let dateIndex = -1;
+            
+            // Define a map of original header names to desired display names.
+            const requiredHeadersMap = [
+                { original: '請購案號', display: '請購案號' },
+                { original: '收料編號拍照即時上傳檔案', display: '收料編號' },
+                { original: '材料編號', display: '材料編號' },
+                { original: '品名規格', display: '品名規格' },
+                { original: '數量', display: '數量' },
+                { original: '料位號', display: '料位號' },
+                { original: '待收料啟動建檔異動日期', display: '收料日期' },
+                { original: '庫別', display: '庫別' },
+                { original: '請購部門', display: '請購部門' }
+            ];
+            
+            // Define the allowed values for the '請購部門' field using a Set for faster lookup
+            const allowedDepartments = new Set([
+                "3Y000 手術室",
+                "3Y100 手術一般外科組",
+                "3Y200 胸腔心臟血管手術組",
+                "3Y300 手術神經外科組",
+                "3Y400 手術小兒外科組",
+                "3Y500 手術整形外科組",
+                "3Y5D0 手術整形外傷組",
+                "3Y600 泌尿科組",
+                "3Y700 手術骨科組",
+                "3Y800 手術直腸科組",
+                "3Y900 手術外傷科組",
+                "3YA00 手術耳鼻喉科組",
+                "4Y000 兒醫開刀房",
+                "4Y600 兒醫泌尿手術組",
+                "4YE00 兒醫手術婦產組",
+                "3Y0A0 手術室等候室",
+                "3Y360 手術室術中同步治療組",
+                "3YM00 手術影像診療科組",
+                "4Y0A0 兒童手術室等候室",
+                "33A20 麻醉科恢復室",
+                "4Y400 兒醫小兒外科手術組",
+                "4YB20 牙二科手術口腔外科組",
+                "43410 眼科開刀房"
+            ]);
+
+
+            /**
+             * Processes the text content and displays the result as a table.
+             * @param {string} content - The text content to be processed.
+             */
+            const processContent = (content) => {
+                try {
+                    // Split the content into lines
+                    const lines = content.split('\n');
+                    if (lines.length === 0 || lines.every(line => line.trim() === '')) {
+                        resultElement.innerHTML = '<p>檔案內容為空或無效。</p>';
+                        return;
+                    }
+
+                    // Get the header line and the rest of the data
+                    const headerLine = lines[0];
+                    const dataLines = lines.slice(1);
+
+                    // Split header and data by comma or tab
+                    const headers = headerLine.split(/[\t,]/).map(h => h.trim());
+                    console.log("從檔案中讀取的欄位標頭：", headers);
+                    
+                    // Find the index of the '庫別', '請購部門', '品名規格' and '料位號' columns for filtering and sorting
+                    // 使用 includes 而非 === 來處理可能的空白或其他隱藏字元
+                    const warehouseIndex = headers.findIndex(h => h.includes('庫別'));
+                    const departmentIndex = headers.findIndex(h => h.includes('請購部門'));
+                    const specIndex = headers.findIndex(h => h.includes('品名規格'));
+                    const locationIndex = headers.findIndex(h => h.includes('料位號'));
+                    // Find the index of the '收料日期' field
+                    dateIndex = headers.findIndex(h => h.includes('待收料啟動建檔異動日期'));
+
+
+                    if (warehouseIndex === -1) {
+                        resultElement.innerHTML = '<p>檔案中未找到「庫別」欄位。請檢查檔案並重新上傳。</p>';
+                        return;
+                    }
+                    if (departmentIndex === -1) {
+                        resultElement.innerHTML = '<p>檔案中未找到「請購部門」欄位。請檢查檔案並重新上傳。</p>';
+                        return;
+                    }
+                    if (specIndex === -1) {
+                        resultElement.innerHTML = '<p>檔案中未找到「品名規格」欄位。請檢查檔案並重新上傳。</p>';
+                        return;
+                    }
+                    if (locationIndex === -1) {
+                        resultElement.innerHTML = '<p>檔案中未找到「料位號」欄位。請檢查檔案並重新上傳。</p>';
+                        return;
+                    }
+                    if (dateIndex === -1) {
+                        resultElement.innerHTML = '<p>檔案中未找到「收料日期」欄位。請檢查檔案並重新上傳。</p>';
+                        return;
+                    }
+
+                    // Initialize counts for the summary box
+                    let maCount = 0;
+                    let mbCount = 0;
+
+                    // Filter data lines and store them in an array
+                    filteredData = [];
+                    dataLines.forEach(line => {
+                        if (line.trim() === '') return;
+                        const parts = line.split(/[\t,]/);
+                        const warehouseValue = parts[warehouseIndex] ? parts[warehouseIndex].trim().replace(/"/g, '') : '';
+                        const departmentValue = parts[departmentIndex] ? parts[departmentIndex].trim().replace(/"/g, '') : '';
+
+                        // Check if the row meets the filtering criteria
+                        if ((warehouseValue === 'MA' || warehouseValue === 'MB') && allowedDepartments.has(departmentValue)) {
+                            filteredData.push(parts);
+                            // Count items for the summary
+                            if (warehouseValue === 'MA') {
+                                maCount++;
+                            } else if (warehouseValue === 'MB') {
+                                mbCount++;
+                            }
+                        }
+                    });
+
+                    // Update the summary box with the new counts
+                    maCountElement.textContent = maCount;
+                    mbCountElement.textContent = mbCount;
+                    totalCountElement.textContent = maCount + mbCount;
+
+
+                    // Sort the filtered data first by '庫別', then by '料位號'
+                    filteredData.sort((a, b) => {
+                        // FIX: Use the correct index `warehouseIndex` instead of `warehouseB`
+                        const warehouseA = a[warehouseIndex] ? a[warehouseIndex].trim().replace(/"/g, '') : '';
+                        const warehouseB = b[warehouseIndex] ? b[warehouseIndex].trim().replace(/"/g, '') : '';
+                        
+                        // FIX: Use the correct index `locationIndex` instead of `locationB`
+                        const locationA = a[locationIndex] ? a[locationIndex].trim().replace(/"/g, '') : '';
+                        const locationB = b[locationIndex] ? b[locationIndex].trim().replace(/"/g, '') : '';
+
+                        // Primary sort by '庫別'
+                        const warehouseCompare = warehouseA.localeCompare(warehouseB, 'zh-Hant');
+                        if (warehouseCompare !== 0) {
+                            return warehouseCompare;
+                        }
+
+                        // Secondary sort by '料位號' with custom logic: English first, then Chinese
+                        const isEnglishLetter = (char) => /[a-zA-Z]/.test(char);
+
+                        const locA_startsWithLetter = locationA.length > 0 && isEnglishLetter(locationA[0]);
+                        const locB_startsWithLetter = locationB.length > 0 && isEnglishLetter(locationB[0]);
+
+                        if (locA_startsWithLetter && !locB_startsWithLetter) {
+                            return -1; // locA (English) comes first
+                        }
+                        if (!locA_startsWithLetter && locB_startsWithLetter) {
+                            return 1; // locB (English) comes first
+                        }
+
+                        // If both start with a letter or neither starts with a letter,
+                        // use localeCompare for standard sorting.
+                        return locationA.localeCompare(locationB, 'zh-Hant');
+                    });
+                    
+                    // Prepare headers for the HTML table
+                    let tableHTML = '<table><thead><tr>';
+                    // Add the new "項次" header first
+                    tableHTML += '<th>項次</th>';
+                    
+                    // Get the indices for the required headers
+                    requiredHeaderIndices = requiredHeadersMap.map(mapping => {
+                        return headers.findIndex(h => h.includes(mapping.original));
+                    });
+
+                    // Create table headers based on the requiredHeadersMap
+                    requiredHeadersMap.forEach(mapping => {
+                        tableHTML += `<th>${mapping.display}</th>`;
+                    });
+                    tableHTML += '</tr></thead><tbody>';
+
+                    // Create table rows for sorted data
+                    filteredData.forEach((parts, index) => {
+                        tableHTML += '<tr>';
+                        // Add the new "項次" cell, which is the row number + 1
+                        tableHTML += `<td>${index + 1}</td>`;
+                        requiredHeaderIndices.forEach(originalIndex => {
+                            const part = (originalIndex !== -1) ? (parts[originalIndex] || '') : '';
+                            let formattedPart = part.trim().replace(/"/g, '');
+
+                            // If this is the '請購部門' column, show only the first 5 characters
+                            if (originalIndex === departmentIndex) {
+                                formattedPart = formattedPart.substring(0, 5);
+                            }
+
+                            // If this is the '品名規格' column, show only the first 30 characters
+                            if (originalIndex === specIndex) {
+                                formattedPart = formattedPart.substring(0, 30);
+                            }
+
+                            // If this is the date column, format the date string
+                            if (originalIndex === dateIndex) {
+                                // Check for the new format with 'T' (e.g., "2025-08-17T09:52:20")
+                                if (formattedPart.includes('T')) {
+                                    formattedPart = formattedPart.split('T')[0];
+                                } else if (formattedPart.length >= 8) {
+                                    // Handle the old format (e.g., "20250817")
+                                    const year = formattedPart.substring(0, 4);
+                                    const month = formattedPart.substring(4, 6);
+                                    const day = formattedPart.substring(6, 8);
+                                    formattedPart = `${year}-${month}-${day}`;
+                                }
+                            }
+                            tableHTML += `<td>${formattedPart}</td>`;
+                        });
+                        tableHTML += '</tr>';
+                    });
+
+                    tableHTML += '</tbody></table>';
+
+                    // Display the table in the result element
+                    resultElement.innerHTML = tableHTML;
+                } catch (error) {
+                    console.error("處理檔案時發生錯誤:", error);
+                    resultElement.innerHTML = `<p>處理檔案時發生錯誤，請確認檔案格式是否正確。錯誤詳情：${error.message}</p>`;
+                }
+            };
+
+            /**
+             * This event is triggered when the user selects a file.
+             * @param {Event} event - The file selection event object.
+             */
+            fileInput.addEventListener('change', (event) => {
+                // Clear the previous result display
+                resultElement.innerHTML = '讀取中...';
+                // Reset summary counts while loading
+                maCountElement.textContent = '0';
+                mbCountElement.textContent = '0';
+                totalCountElement.textContent = '0';
+
+                // Get the first file selected by the user
+                const file = event.target.files[0];
+
+                // If no file is selected, do nothing
+                if (!file) {
+                    resultElement.innerHTML = '請選擇一個檔案。';
+                    return;
+                }
+
+                // Create a FileReader object to read the file content
+                const reader = new FileReader();
+
+                /**
+                 * This event is triggered when the file reading is complete.
+                 */
+                reader.onload = (e) => {
+                    // Get the file content (raw text)
+                    const fileContent = e.target.result;
+                    processContent(fileContent);
+                };
+
+                /**
+                 * This event is triggered when an error occurs while reading the file.
+                 */
+                reader.onerror = (e) => {
+                    console.error('檔案讀取錯誤:', e);
+                    resultElement.innerHTML = '讀取檔案時發生錯誤，請重試。';
+                };
+
+                // Read the file content as text
+                reader.readAsText(file);
+            });
+
+            /**
+             * Handles the "Filter Units" button click event.
+             */
+            filterBtn.addEventListener('click', () => {
+                // Get the table body element
+                const departmentTableBody = departmentTable.querySelector('tbody');
+                // Clear the table body before populating
+                departmentTableBody.innerHTML = '';
+                
+                // Convert the Set to an array and sort it in ascending order
+                const sortedDepartments = Array.from(allowedDepartments).sort((a, b) => a.localeCompare(b, 'zh-Hant'));
+
+                let counter = 1;
+                // Dynamically add table rows for each department from the sorted array
+                sortedDepartments.forEach(department => {
+                    const tr = document.createElement('tr');
+                    
+                    // Create cell for the counter
+                    const tdCounter = document.createElement('td');
+                    tdCounter.textContent = counter;
+                    tr.appendChild(tdCounter);
+                    
+                    // Create cell for the department name
+                    const tdDepartment = document.createElement('td');
+                    tdDepartment.textContent = department;
+                    tr.appendChild(tdDepartment);
+                    
+                    departmentTableBody.appendChild(tr);
+                    counter++;
+                });
+
+                // Show the modal
+                filterModal.style.display = 'flex';
+            });
+
+            // Handles the "使用說明" button click to show the instructions modal
+            showInstructionsBtn.addEventListener('click', () => {
+                instructionsModal.style.display = 'flex';
+            });
+
+            /**
+             * Handles the close button click event to hide the modal.
+             */
+            closeModalBtn.addEventListener('click', () => {
+                filterModal.style.display = 'none';
+            });
+            
+            // Handles the close button click for the instructions modal
+            closeInstructionsModalBtn.addEventListener('click', () => {
+                instructionsModal.style.display = 'none';
+            });
+
+
+            /**
+             * Handles clicks outside the modal content to hide it.
+             */
+            window.addEventListener('click', (event) => {
+                if (event.target === filterModal) {
+                    filterModal.style.display = 'none';
+                }
+                // Also hide the instructions modal
+                if (event.target === instructionsModal) {
+                    instructionsModal.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
